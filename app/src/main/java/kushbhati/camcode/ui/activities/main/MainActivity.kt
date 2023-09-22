@@ -1,6 +1,7 @@
 package kushbhati.camcode.ui.activities.main
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -9,7 +10,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import kushbhati.camcode.ui.activities.main.components.composables.PreviewScreen
-import io.github.kushbhati7.camcode.ui.theme.CodeCamTheme
+import kushbhati.camcode.ui.theme.CodeCamTheme
+import kushbhati.imagelib.NativeLib
 
 class MainActivity : ComponentActivity() {
 
@@ -17,6 +19,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        Log.d("NativeTest", NativeLib().stringFromJNI())
 
         viewModel.init(this)
 

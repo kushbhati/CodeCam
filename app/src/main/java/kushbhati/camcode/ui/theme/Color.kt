@@ -1,4 +1,4 @@
-package io.github.kushbhati7.camcode.ui.theme
+package kushbhati.camcode.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
