@@ -31,7 +31,7 @@ class LogicHandler(context: Context, val frameDestination: (RGBImage) -> Unit) {
         if (currentStreamChannel == StreamChannel.GREYSCALE) {
             frameDestination(greyImage.toRGBImage())
         }
-        //TODO blurredStream(imageProcessor.blur(greyImage))
+        blurredStream(imageProcessor.blur(greyImage))
     }
 
     private fun blurredStream(blurredImage: GreyImage) {
@@ -45,16 +45,16 @@ class LogicHandler(context: Context, val frameDestination: (RGBImage) -> Unit) {
         if (currentStreamChannel == StreamChannel.CLAMPED) {
             frameDestination(clampedImage.toRGBImage())
         }
-        regionalStream(imageProcessor.quantify(clampedImage))
+        //regionalStream(imageProcessor.quantify(clampedImage))
     }
 
-    private fun regionalStream(localImage: List<GreyImage>) {
+    /*private fun regionalStream(localImage: List<Pair<Pair<Int, Int>, GreyImage>>) {
         if (currentStreamChannel is StreamChannel.REGIONAL) {
             frameDestination(localImage[
                 (currentStreamChannel as? StreamChannel.REGIONAL)?.region ?: 0
             ].toRGBImage())
         }
         //imageProcessor.analyse(localImage) //TODO
-    }
+    }*/
 
 }

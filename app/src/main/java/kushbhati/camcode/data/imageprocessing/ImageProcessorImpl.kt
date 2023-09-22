@@ -3,7 +3,7 @@ package kushbhati.camcode.data.imageprocessing
 import kushbhati.camcode.datamodels.GreyImage
 import kushbhati.camcode.domain.ImageProcessor
 
-
+@OptIn(ExperimentalUnsignedTypes::class)
 object ImageProcessorImpl : ImageProcessor {
     /*fun analyzer {
             val alpha = imageProxy.planes[0]
@@ -30,11 +30,16 @@ object ImageProcessorImpl : ImageProcessor {
             imageProxy.close()
         }*/
     override fun blur(image: GreyImage): GreyImage {
-        TODO("Not yet implemented")
+        return image //TODO
     }
 
     override fun clamp(image: GreyImage): GreyImage {
-        TODO("Not yet implemented")
+        for (i in image.pixelMatrix.indices) {
+            with(image.pixelMatrix) {
+                this[i] = if (this[i] > 192u) 255u.toUByte() else 0u.toUByte()
+            }
+        }
+        return image
     }
 
     override fun quantify(greyImage: GreyImage): List<GreyImage> {

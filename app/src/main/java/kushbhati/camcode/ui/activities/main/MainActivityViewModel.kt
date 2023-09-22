@@ -18,7 +18,7 @@ class MainActivityViewModel : ViewModel() {
 
     fun init(context: Context) {
         logicHandler = LogicHandler(context) { previewFrame.value = it }
-        logicHandler.currentStreamChannel = StreamChannel.DIRECT
+        logicHandler.currentStreamChannel = StreamChannel.CLAMPED
         resolution.value = logicHandler.resolution
     }
 }
