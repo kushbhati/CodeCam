@@ -1,10 +1,8 @@
 package kushbhati.camcode.datamodels
 
-
-@OptIn(ExperimentalUnsignedTypes::class)
 class GreyImage (
     val resolution: Resolution,
-    val pixelMatrix: UByteArray
+    val pixelMatrix: ByteArray
 ) {
     fun toRGBImage(): RGBImage {
         return RGBImage(

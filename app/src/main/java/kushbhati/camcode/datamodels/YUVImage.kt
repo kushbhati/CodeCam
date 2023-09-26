@@ -3,13 +3,11 @@ package kushbhati.camcode.datamodels
 import kushbhati.camcode.datamodels.GreyImage
 import kushbhati.camcode.datamodels.Resolution
 
-
-@OptIn(ExperimentalUnsignedTypes::class)
-data class YUVImage(
+class YUVImage(
     val resolution: Resolution,
-    val yMatrix: UByteArray,
-    val uMatrix: UByteArray,
-    val vMatrix: UByteArray
+    val yMatrix: ByteArray,
+    val uMatrix: ByteArray,
+    val vMatrix: ByteArray
 ) {
     fun toGreyImage(): GreyImage {
         return GreyImage(

@@ -18,13 +18,12 @@ class PreviewView(context: Context) : SurfaceView(context), SurfaceHolder.Callba
         holder.addCallback(this)
     }
 
-    @OptIn(ExperimentalUnsignedTypes::class)
     private fun RGBImage.toUnrotatedBitmap(): Bitmap {
         val pixelData = IntArray(resolution.width * resolution.height) {
             Color.rgb(
-                rChannel[it].toInt(),
-                gChannel[it].toInt(),
-                bChannel[it].toInt()
+                rChannel[it].toUByte().toInt(),
+                gChannel[it].toUByte().toInt(),
+                bChannel[it].toUByte().toInt()
             )
         }
         return Bitmap.createBitmap(

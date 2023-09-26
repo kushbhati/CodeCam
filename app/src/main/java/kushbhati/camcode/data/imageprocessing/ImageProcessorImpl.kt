@@ -2,10 +2,14 @@ package kushbhati.camcode.data.imageprocessing
 
 import kushbhati.camcode.datamodels.GreyImage
 import kushbhati.camcode.domain.ImageProcessor
+import kushbhati.imagelib.ImageProcessorHelper
 
 @OptIn(ExperimentalUnsignedTypes::class)
 object ImageProcessorImpl : ImageProcessor {
-    /*fun analyzer {
+    val imageProcessorHelper = ImageProcessorHelper()
+
+    /*
+    fun analyzer {
             val alpha = imageProxy.planes[0]
             //Log.d("alpha", alpha.rowStride.toString())
             var max: Int = 0
@@ -28,18 +32,24 @@ object ImageProcessorImpl : ImageProcessor {
             imageProxy.setCropRect(Rect(0, 0, -200, -200))
             //Log.d("crop_rect", imageProxy.cropRect.toString())
             imageProxy.close()
-        }*/
+        }
+        */
     override fun blur(image: GreyImage): GreyImage {
-        return image //TODO
+        val newImage = GreyImage(
+            image.resolution,
+            with(imageProcessorHelper) {
+                image.pixelMatrix.blur(image.resolution.width, image.resolution.height)
+            }
+        )
+        return newImage
     }
 
     override fun clamp(image: GreyImage): GreyImage {
-        for (i in image.pixelMatrix.indices) {
-            with(image.pixelMatrix) {
-                this[i] = if (this[i] > 192u) 255u.toUByte() else 0u.toUByte()
-            }
-        }
-        return image
+        val newImage = GreyImage(
+            image.resolution,
+            with(imageProcessorHelper) { image.pixelMatrix.clamp() }
+        )
+        return newImage
     }
 
     override fun quantify(greyImage: GreyImage): List<GreyImage> {

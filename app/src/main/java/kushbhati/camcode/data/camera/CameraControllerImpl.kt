@@ -2,7 +2,6 @@ package kushbhati.camcode.data.camera
 
 import android.content.Context
 import android.graphics.ImageFormat
-import android.graphics.PixelFormat
 import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
@@ -11,11 +10,14 @@ import android.hardware.camera2.CameraManager
 import android.hardware.camera2.params.OutputConfiguration
 import android.hardware.camera2.params.SessionConfiguration
 import android.media.ImageReader
+import android.os.Handler
+import android.os.Looper
 import android.view.Surface
 import kushbhati.camcode.domain.CameraController
 import kushbhati.camcode.datamodels.Resolution
 import kushbhati.camcode.datamodels.YUVImage
 import java.util.concurrent.Executors
+import java.util.concurrent.ThreadFactory
 
 class CameraControllerImpl(context: Context) : CameraController {
 
@@ -31,6 +33,30 @@ class CameraControllerImpl(context: Context) : CameraController {
 
     private lateinit var device: CameraDevice
 
+    private val threadFactory = object : ThreadFactory {
+        inner class LoopingThread : Thread() {
+            init {
+                Looper.prepare()
+                Looper.loop()
+            }
+        }
+
+        override fun newThread(r: Runnable?): Thread {
+            return LoopingThread()
+        }
+    }
+
+    private val executor = Executors.newFixedThreadPool(64)
+
+    /*private val imageListener = object : Runnable {
+        private val executor = Executors.newFixedThreadPool(64)
+        private val frameReceiver: ((YUVImage) -> Unit)? = null
+        private val onImageAvailableListener =
+        
+        override fun run() {
+            TODO("Not yet implemented")
+        }
+    }*/
 
     init {
         obtainCameraList()
@@ -59,14 +85,10 @@ class CameraControllerImpl(context: Context) : CameraController {
             object: CameraCaptureSession.StateCallback() {
                 override fun onConfigured(session: CameraCaptureSession) {
                     val captureRequest = session.device.createCaptureRequest(CameraDevice.TEMPLATE_RECORD)
-                    captureRequest.addTarget(
-                        surface
-                    )
+                    captureRequest.addTarget(surface)
                     session.setRepeatingRequest(captureRequest.build(), null, null)
                 }
-                override fun onConfigureFailed(session: CameraCaptureSession) {
-                    TODO()
-                }
+                override fun onConfigureFailed(session: CameraCaptureSession) { TODO() }
             }
         )
         device.createCaptureSession(sessionConfig)
@@ -112,8 +134,7 @@ class CameraControllerImpl(context: Context) : CameraController {
     }
 
 
-    @OptIn(ExperimentalUnsignedTypes::class)
-    override fun setFrameReceiver(onReceive: (YUVImage) -> Unit) {
+    override fun setFrameReceiver(frameReceiver: (YUVImage) -> Unit) {
         imageReader.setOnImageAvailableListener(object : ImageReader.OnImageAvailableListener {
             override fun onImageAvailable(reader: ImageReader?) {
                 val image = reader?.acquireLatestImage() ?: return
@@ -128,13 +149,14 @@ class CameraControllerImpl(context: Context) : CameraController {
                 image.close()
                 val yuvImage = YUVImage(
                     Resolution(width, height, getRotationDelta()),
-                    yChannel.toUByteArray(),
-                    uChannel.toUByteArray(),
-                    vChannel.toUByteArray()
+                    yChannel,
+                    uChannel,
+                    vChannel
                 )
-                onReceive(yuvImage)
+                executor.submit {
+                    frameReceiver(yuvImage)
+                }
             }
         }, null)
     }
-
 }
