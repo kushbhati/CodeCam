@@ -1,7 +1,5 @@
 package kushbhati.camcode.ui.activities.main.components.composables
 
-import android.util.Log
-import android.util.Size
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,21 +12,15 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.viewinterop.AndroidView
 import kushbhati.camcode.datamodels.RGBImage
-import kushbhati.camcode.datamodels.Resolution
 import kushbhati.camcode.ui.activities.main.components.views.PreviewView
 
 @Composable
 fun PreviewScreen(
-    resolution: Resolution,
     previewFrame: RGBImage?,
-    overlay: @Composable (LayoutCoordinates?) -> Unit
+    overlay: @Composable ((LayoutCoordinates?) -> Unit)? = null
 ) {
-    val size = with (resolution) {
-        if (desiredRotation == 0 || desiredRotation == 180) Size(width, height)
-        else Size(height, width)
-    }
-    val aspectRatio = size.width.toFloat() / size.height
     val layoutCoordinates: MutableState<LayoutCoordinates?> = remember { mutableStateOf(null) }
+    val previewView: MutableState<PreviewView?> = remember { mutableStateOf(null) }
 
     Box(modifier = Modifier
         .onGloballyPositioned {
@@ -38,22 +30,20 @@ fun PreviewScreen(
         AndroidView(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(aspectRatio),
+                .aspectRatio(previewView.value?.getAspectRatio() ?: 1f),
             factory = { context ->
-                Log.d("init", "now")
                 PreviewView(context).apply {
                     clipToOutline = true
+                    previewView.value = this
                 }
             },
             update = {
-                it.holder.setFixedSize(size.width, size.height)
                 if ((previewFrame != null)) {
-                    Log.d("update", "now")
                     it.render(previewFrame)
                 }
             }
         )
 
-        overlay(layoutCoordinates.value)
+        overlay?.invoke(layoutCoordinates.value)
     }
 }

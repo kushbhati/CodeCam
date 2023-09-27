@@ -1,17 +1,14 @@
 package kushbhati.camcode.datamodels
 
-import kushbhati.camcode.datamodels.GreyImage
-import kushbhati.camcode.datamodels.Resolution
-
 class YUVImage(
-    val resolution: Resolution,
+    val metadata: Metadata,
     val yMatrix: ByteArray,
     val uMatrix: ByteArray,
     val vMatrix: ByteArray
 ) {
     fun toGreyImage(): GreyImage {
         return GreyImage(
-            resolution = resolution,
+            metadata = metadata,
             pixelMatrix = yMatrix
         )
     }

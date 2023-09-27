@@ -10,14 +10,13 @@ import android.hardware.camera2.CameraManager
 import android.hardware.camera2.params.OutputConfiguration
 import android.hardware.camera2.params.SessionConfiguration
 import android.media.ImageReader
-import android.os.Handler
-import android.os.Looper
 import android.view.Surface
-import kushbhati.camcode.domain.CameraController
-import kushbhati.camcode.datamodels.Resolution
+import kushbhati.camcode.datamodels.Metadata
 import kushbhati.camcode.datamodels.YUVImage
+import kushbhati.camcode.domain.CameraController
 import java.util.concurrent.Executors
-import java.util.concurrent.ThreadFactory
+import kotlin.properties.Delegates
+
 
 class CameraControllerImpl(context: Context) : CameraController {
 
@@ -30,21 +29,8 @@ class CameraControllerImpl(context: Context) : CameraController {
 
     private lateinit var cameraList: Array<String>
     private var currentCameraIndex: Int = 0
-
     private lateinit var device: CameraDevice
-
-    private val threadFactory = object : ThreadFactory {
-        inner class LoopingThread : Thread() {
-            init {
-                Looper.prepare()
-                Looper.loop()
-            }
-        }
-
-        override fun newThread(r: Runnable?): Thread {
-            return LoopingThread()
-        }
-    }
+    private var naturalRotation: Int = 0
 
     private val executor = Executors.newFixedThreadPool(64)
 
@@ -102,6 +88,8 @@ class CameraControllerImpl(context: Context) : CameraController {
                 object : CameraDevice.StateCallback() {
                     override fun onOpened(cameraDevice: CameraDevice) {
                         device = cameraDevice
+                        val characteristics = cameraManager.getCameraCharacteristics(cameraList[currentCameraIndex])
+                        naturalRotation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 0
                         initCaptureSession()
                     }
 
@@ -118,44 +106,67 @@ class CameraControllerImpl(context: Context) : CameraController {
     }
 
 
-    override fun getResolution(): Resolution {
-        val characteristics = cameraManager.getCameraCharacteristics(cameraList[currentCameraIndex])
-        val streamConfigurationMap = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
-        val outputSizes = streamConfigurationMap?.getOutputSizes(ImageFormat.YUV_420_888) ?: throw Exception()
-        outputSizes.filter { it.width % 2 == 0 && it.height % 2 == 0}
-        val outputAreas = outputSizes.map { listOf(it.width * it.height, it.width, it.height) }.sortedBy { it[0] }
-        return with (outputAreas.first { it[0] >= 307200 }) { Resolution(this[1], this[2], getRotationDelta()) }
+    fun YUVImage.toNaturalRotation() {
+        when (naturalRotation) {
+            90 -> {
+                val yCopy = yMatrix.clone()
+                val uCopy = uMatrix.clone()
+                val vCopy = vMatrix.clone()
+                for (r in 0 until metadata.height) for (c in 0 until metadata.width) {
+                    yMatrix[metadata.height * c + metadata.height - 1 - r] =
+                        yCopy[metadata.width * r + c]
+                }
+                for (r in 0 until metadata.height/2) for (c in 0 until metadata.width/2) {
+                    uMatrix[metadata.height/2 * c + metadata.height/2 - 1 - r] =
+                        uCopy[metadata.width/2 * r + c]
+                    vMatrix[metadata.height/2 * c + metadata.height/2 - 1 - r] =
+                        vCopy[metadata.width/2 * r + c]
+                }
+                run {
+                    val temp = metadata.height
+                    metadata.height = metadata.width
+                    metadata.width = temp
+                }
+            }
+
+            270 -> {
+                TODO()
+            }
+
+            180 -> {
+                TODO()
+            }
+        }
     }
 
 
-    private fun getRotationDelta(): Int {
-        val characteristics = cameraManager.getCameraCharacteristics(cameraList[currentCameraIndex])
-        return characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 0
-    }
-
-
-    override fun setFrameReceiver(frameReceiver: (YUVImage) -> Unit) {
+    override fun setFrameReceiver(frameReceiver: CameraController.FrameReceiver) {
         imageReader.setOnImageAvailableListener(object : ImageReader.OnImageAvailableListener {
             override fun onImageAvailable(reader: ImageReader?) {
                 val image = reader?.acquireLatestImage() ?: return
                 val width = image.width
                 val height = image.height
+                val timeStamp = image.timestamp
+
                 val yChannel = ByteArray(height * width)
-                val uChannel = ByteArray(image.height/2 * image.width/2)
-                val vChannel = ByteArray(image.height/2 * image.width/2)
+                val uChannel = ByteArray(height/2 * width/2)
+                val vChannel = ByteArray(height/2 * width/2)
+
                 image.planes[0].buffer.get(yChannel)
                 image.planes[1].buffer.get(uChannel)
                 image.planes[2].buffer.get(vChannel)
                 image.close()
+
                 val yuvImage = YUVImage(
-                    Resolution(width, height, getRotationDelta()),
+                    Metadata(width, height, timeStamp),
                     yChannel,
                     uChannel,
                     vChannel
                 )
-                executor.submit {
-                    frameReceiver(yuvImage)
-                }
+
+                yuvImage.toNaturalRotation()
+
+                executor.submit { frameReceiver.onReceive(yuvImage) }
             }
         }, null)
     }

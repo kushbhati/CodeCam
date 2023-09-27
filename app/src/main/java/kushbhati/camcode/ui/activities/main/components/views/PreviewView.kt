@@ -13,13 +13,19 @@ import kushbhati.camcode.datamodels.RGBImage
 class PreviewView(context: Context) : SurfaceView(context), SurfaceHolder.Callback {
 
     private var surfaceAvailable: Boolean = false
+    private var sHeight: Int = 500
+    private var sWidth: Int = 500
 
     init {
         holder.addCallback(this)
     }
 
-    private fun RGBImage.toUnrotatedBitmap(): Bitmap {
-        val pixelData = IntArray(resolution.width * resolution.height) {
+    fun getAspectRatio(): Float {
+        return sWidth.toFloat() / sHeight
+    }
+
+    private fun RGBImage.toBitmap(): Bitmap {
+        val pixelData = IntArray(metadata.width * metadata.height) {
             Color.rgb(
                 rChannel[it].toUByte().toInt(),
                 gChannel[it].toUByte().toInt(),
@@ -28,31 +34,24 @@ class PreviewView(context: Context) : SurfaceView(context), SurfaceHolder.Callba
         }
         return Bitmap.createBitmap(
             pixelData,
-            resolution.width,
-            resolution.height,
+            metadata.width,
+            metadata.height,
             Bitmap.Config.ARGB_8888
         )
     }
 
-    private fun RGBImage.computeRotationMatrix(): Matrix {
-        val matrix = Matrix()
-        matrix.setRotate(resolution.desiredRotation.toFloat())
-        when (resolution.desiredRotation) {
-            90 -> matrix.postTranslate(resolution.height.toFloat(), 0f)
-            270 -> matrix.postTranslate(0f, resolution.width.toFloat())
-            180 -> matrix.postTranslate(resolution.height.toFloat(), resolution.width.toFloat())
+    fun render(image: RGBImage) {
+        if (image.metadata.width != sWidth || image.metadata.height != sHeight)
+        {
+            sWidth = image.metadata.width
+            sHeight = image.metadata.height
+            holder.setFixedSize(sWidth, sHeight)
         }
-        return matrix
-    }
 
-    fun render(rgbImage: RGBImage) {
         if (surfaceAvailable) {
-            val bitmap = rgbImage.toUnrotatedBitmap()
-            val matrix = rgbImage.computeRotationMatrix()
+            val bitmap = image.toBitmap()
             val canvas = holder.lockHardwareCanvas()
-            synchronized(holder) {
-                canvas.drawBitmap(bitmap, matrix, null)
-            }
+            synchronized(holder) { canvas.drawBitmap(bitmap, Matrix(), null) }
             holder.unlockCanvasAndPost(canvas)
         }
     }

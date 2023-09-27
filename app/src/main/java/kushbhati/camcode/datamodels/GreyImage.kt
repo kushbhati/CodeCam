@@ -1,12 +1,12 @@
 package kushbhati.camcode.datamodels
 
 class GreyImage (
-    val resolution: Resolution,
+    val metadata: Metadata,
     val pixelMatrix: ByteArray
 ) {
     fun toRGBImage(): RGBImage {
         return RGBImage(
-            resolution = resolution,
+            metadata = metadata,
             rChannel = pixelMatrix,
             gChannel = pixelMatrix,
             bChannel = pixelMatrix

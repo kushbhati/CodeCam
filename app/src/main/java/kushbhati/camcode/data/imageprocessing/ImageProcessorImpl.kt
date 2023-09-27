@@ -6,7 +6,7 @@ import kushbhati.imagelib.ImageProcessorHelper
 
 @OptIn(ExperimentalUnsignedTypes::class)
 object ImageProcessorImpl : ImageProcessor {
-    val imageProcessorHelper = ImageProcessorHelper()
+    private val imageProcessorHelper = ImageProcessorHelper()
 
     /*
     fun analyzer {
@@ -36,9 +36,9 @@ object ImageProcessorImpl : ImageProcessor {
         */
     override fun blur(image: GreyImage): GreyImage {
         val newImage = GreyImage(
-            image.resolution,
+            image.metadata,
             with(imageProcessorHelper) {
-                image.pixelMatrix.blur(image.resolution.width, image.resolution.height)
+                image.pixelMatrix.blur(image.metadata.width, image.metadata.height)
             }
         )
         return newImage
@@ -46,7 +46,7 @@ object ImageProcessorImpl : ImageProcessor {
 
     override fun clamp(image: GreyImage): GreyImage {
         val newImage = GreyImage(
-            image.resolution,
+            image.metadata,
             with(imageProcessorHelper) { image.pixelMatrix.clamp() }
         )
         return newImage

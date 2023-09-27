@@ -5,7 +5,6 @@ import kushbhati.camcode.data.camera.CameraAdapter
 import kushbhati.camcode.data.imageprocessing.IPAdaptor
 import kushbhati.camcode.datamodels.GreyImage
 import kushbhati.camcode.datamodels.RGBImage
-import kushbhati.camcode.datamodels.Resolution
 import kushbhati.camcode.datamodels.YUVImage
 
 class LogicHandler(context: Context, val frameDestination: (RGBImage) -> Unit) {
@@ -13,11 +12,12 @@ class LogicHandler(context: Context, val frameDestination: (RGBImage) -> Unit) {
     private val imageProcessor: ImageProcessor = IPAdaptor.imageProcessor
 
     var currentStreamChannel: StreamChannel = StreamChannel.DIRECT
-    val resolution: Resolution = cameraController.getResolution()
 
     init {
         cameraController.startCamera()
-        cameraController.setFrameReceiver(::cameraStream)
+        cameraController.setFrameReceiver(object : CameraController.FrameReceiver {
+            override fun onReceive(image: YUVImage) = cameraStream(image)
+        })
     }
 
     private fun cameraStream(yuvImage: YUVImage) {
