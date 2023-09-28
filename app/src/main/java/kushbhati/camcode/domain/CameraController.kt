@@ -8,6 +8,7 @@ interface CameraController {
         fun onReceive(image: YUVImage)
     }
 
-    fun startCamera()
-    fun setFrameReceiver(frameReceiver: FrameReceiver)
+    fun openCamera()
+
+    fun setFrameReceiver(frameReceiver: FrameReceiver?)
 }

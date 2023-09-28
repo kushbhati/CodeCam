@@ -26,6 +26,6 @@ class MainActivityViewModel : ViewModel() {
                 timeStamp = it.metadata.timeStamp
             }
         }
-        logicHandler.currentStreamChannel = StreamChannel.CLAMPED
+        logicHandler.currentStreamChannel = StreamChannel.DIRECT
     }
 }

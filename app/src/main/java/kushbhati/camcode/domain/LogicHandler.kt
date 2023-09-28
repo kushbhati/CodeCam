@@ -14,7 +14,6 @@ class LogicHandler(context: Context, val frameDestination: (RGBImage) -> Unit) {
     var currentStreamChannel: StreamChannel = StreamChannel.DIRECT
 
     init {
-        cameraController.startCamera()
         cameraController.setFrameReceiver(object : CameraController.FrameReceiver {
             override fun onReceive(image: YUVImage) = cameraStream(image)
         })
@@ -31,7 +30,7 @@ class LogicHandler(context: Context, val frameDestination: (RGBImage) -> Unit) {
         if (currentStreamChannel == StreamChannel.GREYSCALE) {
             frameDestination(greyImage.toRGBImage())
         }
-        blurredStream(imageProcessor.blur(greyImage))
+        //blurredStream(imageProcessor.blur(greyImage))
     }
 
     private fun blurredStream(blurredImage: GreyImage) {

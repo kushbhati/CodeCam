@@ -7,106 +7,169 @@ import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
+import android.hardware.camera2.CaptureRequest
 import android.hardware.camera2.params.OutputConfiguration
 import android.hardware.camera2.params.SessionConfiguration
 import android.media.ImageReader
-import android.view.Surface
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import android.util.Size
 import kushbhati.camcode.datamodels.Metadata
 import kushbhati.camcode.datamodels.YUVImage
 import kushbhati.camcode.domain.CameraController
 import java.util.concurrent.Executors
-import kotlin.properties.Delegates
 
 
 class CameraControllerImpl(context: Context) : CameraController {
 
     private val cameraManager: CameraManager =
         context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-    private val imageReader: ImageReader =
-        ImageReader.newInstance(640, 480, ImageFormat.YUV_420_888, 10)
-    private val surface: Surface =
-        imageReader.surface
 
     private lateinit var cameraList: Array<String>
     private var currentCameraIndex: Int = 0
-    private lateinit var device: CameraDevice
+
+    private lateinit var cameraDevice: CameraDevice
+
     private var naturalRotation: Int = 0
+    private var frameDuration: Long = 0L
+    private var imageFormat: Int = ImageFormat.YUV_420_888
+    private var imageSize: Size = Size(640, 480)
+
+    private lateinit var imageReader: ImageReader
+
+    private lateinit var sessionConfiguration: SessionConfiguration
 
     private val executor = Executors.newFixedThreadPool(64)
 
-    /*private val imageListener = object : Runnable {
-        private val executor = Executors.newFixedThreadPool(64)
-        private val frameReceiver: ((YUVImage) -> Unit)? = null
-        private val onImageAvailableListener =
-        
-        override fun run() {
+    private val cameraHandler = object : CameraDevice.StateCallback() {
+        override fun onOpened(device: CameraDevice) {
+            cameraDevice = device
+            obtainCameraCharacteristics()
+            initSession()
+        }
+
+        override fun onDisconnected(camera: CameraDevice) {
             TODO("Not yet implemented")
         }
-    }*/
+
+        override fun onError(camera: CameraDevice, error: Int) {
+            TODO("Not yet implemented")
+        }
+
+    }
+
+    private val sessionHandler = object: CameraCaptureSession.StateCallback() {
+        override fun onConfigured(session: CameraCaptureSession) {
+            val captureRequest = session.device.createCaptureRequest(CameraDevice.TEMPLATE_RECORD)
+            captureRequest.addTarget(imageReader.surface)
+            captureRequest.set(CaptureRequest.SENSOR_FRAME_DURATION, frameDuration)
+            session.setRepeatingRequest(captureRequest.build(), null, null)
+        }
+
+        override fun onConfigureFailed(session: CameraCaptureSession) {
+            TODO()
+        }
+    }
+
+    private var frameReceiver: CameraController.FrameReceiver? = null
 
     init {
-        obtainCameraList()
+        enumerateCameras()
+        openCandidateCamera()
     }
 
 
     @Throws(CameraAccessException::class)
-    private fun obtainCameraList() {
+    private fun enumerateCameras() {
         cameraList = cameraManager.cameraIdList
         cameraList.filter { cameraId ->
             val characteristics = cameraManager.getCameraCharacteristics(cameraId)
             val outputFormats = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)?.outputFormats?: IntArray(0)
-            ImageFormat.YUV_420_888 in outputFormats && ImageFormat.RAW_SENSOR in outputFormats
+            imageFormat in outputFormats
         }
     }
 
 
-    private fun initCaptureSession() {
-        val config = OutputConfiguration(
-            surface
-        )
-        val sessionConfig = SessionConfiguration(
-            SessionConfiguration.SESSION_REGULAR,
-            listOf(config),
+    @Throws(SecurityException::class)
+    private fun openCandidateCamera() {
+        cameraManager.openCamera(
+            cameraList[currentCameraIndex],
             Executors.newSingleThreadExecutor(),
-            object: CameraCaptureSession.StateCallback() {
-                override fun onConfigured(session: CameraCaptureSession) {
-                    val captureRequest = session.device.createCaptureRequest(CameraDevice.TEMPLATE_RECORD)
-                    captureRequest.addTarget(surface)
-                    session.setRepeatingRequest(captureRequest.build(), null, null)
-                }
-                override fun onConfigureFailed(session: CameraCaptureSession) { TODO() }
-            }
+            cameraHandler
         )
-        device.createCaptureSession(sessionConfig)
     }
 
 
-    override fun startCamera() {
-        try {
-            cameraManager.openCamera(cameraList[currentCameraIndex],
-                Executors.newSingleThreadExecutor(),
-                object : CameraDevice.StateCallback() {
-                    override fun onOpened(cameraDevice: CameraDevice) {
-                        device = cameraDevice
-                        val characteristics = cameraManager.getCameraCharacteristics(cameraList[currentCameraIndex])
-                        naturalRotation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 0
-                        initCaptureSession()
-                    }
-
-                    override fun onDisconnected(camera: CameraDevice) {
-                        TODO("Not yet implemented")
-                    }
-
-                    override fun onError(camera: CameraDevice, error: Int) {
-                        TODO("Not yet implemented")
-                    }
-
-                })
-        } catch (_: SecurityException) {}
+    @Throws(CameraAccessException::class)
+    private fun obtainCameraCharacteristics() {
+        val characteristics = cameraManager.getCameraCharacteristics(cameraList[currentCameraIndex])
+        val streamConfigurationMap = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
+        imageSize = streamConfigurationMap?.
+            getOutputSizes(imageFormat)?.
+            filter { it.width >= 640 }?.
+            minBy { it.height * it.width } ?: imageSize
+        frameDuration = streamConfigurationMap?.getOutputMinFrameDuration(imageFormat, imageSize) ?: 0
+        naturalRotation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 0
+        Log.d("Values", "$imageSize $frameDuration $naturalRotation")
     }
 
 
-    fun YUVImage.toNaturalRotation() {
+    @Throws(CameraAccessException::class)
+    private fun initSession() {
+        imageReader = ImageReader.newInstance(
+            imageSize.width,
+            imageSize.height,
+            imageFormat,
+            16
+        )
+
+        imageReader.setOnImageAvailableListener(
+            { reader ->
+                val image = reader?.acquireLatestImage() ?: return@setOnImageAvailableListener
+                val width = image.width
+                val height = image.height
+                val timeStamp = image.timestamp
+
+                val yChannel = ByteArray(height * width)
+                val uChannel = ByteArray(height/2 * width/2)
+                val vChannel = ByteArray(height/2 * width/2)
+
+                image.planes[0].buffer.get(yChannel)
+                image.planes[1].buffer.get(uChannel)
+                image.planes[2].buffer.get(vChannel)
+                image.close()
+
+                executor.submit {
+                    val yuvImage = YUVImage(
+                        Metadata(width, height, timeStamp),
+                        yChannel,
+                        uChannel,
+                        vChannel
+                    )
+                    yuvImage.toNaturalRotation()
+                    frameReceiver?.onReceive(yuvImage)
+                }
+            },
+            Handler(Looper.getMainLooper())
+        )
+
+        sessionConfiguration = SessionConfiguration(
+            SessionConfiguration.SESSION_REGULAR,
+            listOf(OutputConfiguration(imageReader.surface)),
+            Executors.newSingleThreadExecutor(),
+            sessionHandler
+        )
+
+        cameraDevice.createCaptureSession(sessionConfiguration)
+    }
+
+
+    override fun openCamera() {
+        openCandidateCamera()
+    }
+
+    private fun YUVImage.toNaturalRotation() {
         when (naturalRotation) {
             90 -> {
                 val yCopy = yMatrix.clone()
@@ -140,34 +203,7 @@ class CameraControllerImpl(context: Context) : CameraController {
     }
 
 
-    override fun setFrameReceiver(frameReceiver: CameraController.FrameReceiver) {
-        imageReader.setOnImageAvailableListener(object : ImageReader.OnImageAvailableListener {
-            override fun onImageAvailable(reader: ImageReader?) {
-                val image = reader?.acquireLatestImage() ?: return
-                val width = image.width
-                val height = image.height
-                val timeStamp = image.timestamp
-
-                val yChannel = ByteArray(height * width)
-                val uChannel = ByteArray(height/2 * width/2)
-                val vChannel = ByteArray(height/2 * width/2)
-
-                image.planes[0].buffer.get(yChannel)
-                image.planes[1].buffer.get(uChannel)
-                image.planes[2].buffer.get(vChannel)
-                image.close()
-
-                val yuvImage = YUVImage(
-                    Metadata(width, height, timeStamp),
-                    yChannel,
-                    uChannel,
-                    vChannel
-                )
-
-                yuvImage.toNaturalRotation()
-
-                executor.submit { frameReceiver.onReceive(yuvImage) }
-            }
-        }, null)
+    override fun setFrameReceiver(receiver: CameraController.FrameReceiver?) {
+        frameReceiver = receiver
     }
 }
