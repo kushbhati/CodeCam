@@ -1,8 +1,9 @@
 package kushbhati.camcode.data.camera
 
-import android.content.Context
+import android.app.Application
+import android.hardware.camera2.CameraManager
 import kushbhati.camcode.domain.CameraController
 
 object CameraAdapter {
-    fun cameraController(context: Context): CameraController = CameraControllerImpl(context)
+    fun cameraController(cameraManager: Application): CameraController = CameraControllerImpl(cameraManager)
 }

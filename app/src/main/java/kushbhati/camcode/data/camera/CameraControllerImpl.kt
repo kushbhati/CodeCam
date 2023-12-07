@@ -1,5 +1,6 @@
 package kushbhati.camcode.data.camera
 
+import android.app.Application
 import android.content.Context
 import android.graphics.ImageFormat
 import android.hardware.camera2.CameraAccessException
@@ -21,13 +22,11 @@ import kushbhati.camcode.domain.CameraController
 import java.util.concurrent.Executors
 
 
-class CameraControllerImpl(context: Context) : CameraController {
-
-    private val cameraManager: CameraManager =
-        context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-
+class CameraControllerImpl(
+    application: Application
+) : CameraController {
+    private val cameraManager = application.getSystemService(Context.CAMERA_SERVICE) as CameraManager
     private lateinit var cameraList: Array<String>
-    private var currentCameraIndex: Int = 0
 
     private lateinit var cameraDevice: CameraDevice
 
@@ -50,26 +49,13 @@ class CameraControllerImpl(context: Context) : CameraController {
         }
 
         override fun onDisconnected(camera: CameraDevice) {
-            TODO("Not yet implemented")
+            camera.close()
         }
 
         override fun onError(camera: CameraDevice, error: Int) {
-            TODO("Not yet implemented")
+            camera.close()
         }
 
-    }
-
-    private val sessionHandler = object: CameraCaptureSession.StateCallback() {
-        override fun onConfigured(session: CameraCaptureSession) {
-            val captureRequest = session.device.createCaptureRequest(CameraDevice.TEMPLATE_RECORD)
-            captureRequest.addTarget(imageReader.surface)
-            captureRequest.set(CaptureRequest.SENSOR_FRAME_DURATION, frameDuration)
-            session.setRepeatingRequest(captureRequest.build(), null, null)
-        }
-
-        override fun onConfigureFailed(session: CameraCaptureSession) {
-            TODO()
-        }
     }
 
     private var frameReceiver: CameraController.FrameReceiver? = null
@@ -91,10 +77,10 @@ class CameraControllerImpl(context: Context) : CameraController {
     }
 
 
-    @Throws(SecurityException::class)
+    @Throws(CameraAccessException::class, SecurityException::class)
     private fun openCandidateCamera() {
         cameraManager.openCamera(
-            cameraList[currentCameraIndex],
+            cameraList.first(),
             Executors.newSingleThreadExecutor(),
             cameraHandler
         )
@@ -103,7 +89,7 @@ class CameraControllerImpl(context: Context) : CameraController {
 
     @Throws(CameraAccessException::class)
     private fun obtainCameraCharacteristics() {
-        val characteristics = cameraManager.getCameraCharacteristics(cameraList[currentCameraIndex])
+        val characteristics = cameraManager.getCameraCharacteristics(cameraList.first())
         val streamConfigurationMap = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
         imageSize = streamConfigurationMap?.
             getOutputSizes(imageFormat)?.
@@ -130,7 +116,6 @@ class CameraControllerImpl(context: Context) : CameraController {
                 val width = image.width
                 val height = image.height
                 val timeStamp = image.timestamp
-
                 val yChannel = ByteArray(height * width)
                 val uChannel = ByteArray(height/2 * width/2)
                 val vChannel = ByteArray(height/2 * width/2)
@@ -154,11 +139,24 @@ class CameraControllerImpl(context: Context) : CameraController {
             Handler(Looper.getMainLooper())
         )
 
+        val sessionCallback = object: CameraCaptureSession.StateCallback() {
+            override fun onConfigured(session: CameraCaptureSession) {
+                val captureRequest = session.device.createCaptureRequest(CameraDevice.TEMPLATE_RECORD)
+                captureRequest.addTarget(imageReader.surface)
+                captureRequest.set(CaptureRequest.SENSOR_FRAME_DURATION, frameDuration)
+                session.setRepeatingRequest(captureRequest.build(), null, null)
+            }
+
+            override fun onConfigureFailed(session: CameraCaptureSession) {
+                TODO()
+            }
+        }
+
         sessionConfiguration = SessionConfiguration(
             SessionConfiguration.SESSION_REGULAR,
             listOf(OutputConfiguration(imageReader.surface)),
             Executors.newSingleThreadExecutor(),
-            sessionHandler
+            sessionCallback
         )
 
         cameraDevice.createCaptureSession(sessionConfiguration)
@@ -203,7 +201,7 @@ class CameraControllerImpl(context: Context) : CameraController {
     }
 
 
-    override fun setFrameReceiver(receiver: CameraController.FrameReceiver?) {
-        frameReceiver = receiver
+    override fun setFrameReceiver(frameReceiver: CameraController.FrameReceiver?) {
+        this.frameReceiver = frameReceiver
     }
 }

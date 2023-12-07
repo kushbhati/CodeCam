@@ -1,54 +1,61 @@
 package kushbhati.camcode.domain
 
 import android.content.Context
-import kushbhati.camcode.data.camera.CameraAdapter
-import kushbhati.camcode.data.imageprocessing.IPAdaptor
 import kushbhati.camcode.datamodels.GreyImage
 import kushbhati.camcode.datamodels.RGBImage
 import kushbhati.camcode.datamodels.YUVImage
 
-class LogicHandler(context: Context, val frameDestination: (RGBImage) -> Unit) {
-    private val cameraController: CameraController = CameraAdapter.cameraController(context)
-    private val imageProcessor: ImageProcessor = IPAdaptor.imageProcessor
-
-    var currentStreamChannel: StreamChannel = StreamChannel.DIRECT
+class LogicHandler(
+    private val streamStatus: StreamStatus,
+    val frameDestination: (RGBImage) -> Unit
+) {
+    private val cameraController: CameraController = RepositoryConnector.defaultCameraController()
+    private val imageProcessor: ImageProcessor = RepositoryConnector.defaultImageProcessor()
 
     init {
-        cameraController.setFrameReceiver(object : CameraController.FrameReceiver {
-            override fun onReceive(image: YUVImage) = cameraStream(image)
-        })
+        try {
+            cameraController.setFrameReceiver(
+                object : CameraController.FrameReceiver {
+                    override fun onReceive(image: YUVImage) = cameraStream(image)
+                }
+            )
+            streamStatus.streamState = StreamState.STREAM_ACTIVE
+        }
+        catch (_: SecurityException) {
+            streamStatus.streamState = StreamState.CAMERA_ACCESS_DENIED
+        }
     }
 
     private fun cameraStream(yuvImage: YUVImage) {
-        if (currentStreamChannel == StreamChannel.DIRECT) {
+        if (streamStatus.streamChannel == StreamChannel.DIRECT) {
             frameDestination(yuvImage.toGreyImage().toRGBImage())
         }
         greyedStream(yuvImage.toGreyImage())
     }
 
     private fun greyedStream(greyImage: GreyImage) {
-        if (currentStreamChannel == StreamChannel.GREYSCALE) {
+        if (streamStatus.streamChannel == StreamChannel.GREYSCALE) {
             frameDestination(greyImage.toRGBImage())
         }
         //blurredStream(imageProcessor.blur(greyImage))
     }
 
     private fun blurredStream(blurredImage: GreyImage) {
-        if (currentStreamChannel == StreamChannel.BLURRED) {
+        if (streamStatus.streamChannel == StreamChannel.BLURRED) {
             frameDestination(blurredImage.toRGBImage())
         }
         clampedStream(imageProcessor.clamp(blurredImage))
     }
 
     private fun clampedStream(clampedImage: GreyImage) {
-        if (currentStreamChannel == StreamChannel.CLAMPED) {
+        if (streamStatus.streamChannel == StreamChannel.CLAMPED) {
             frameDestination(clampedImage.toRGBImage())
         }
         //regionalStream(imageProcessor.quantify(clampedImage))
     }
 
     /*private fun regionalStream(localImage: List<Pair<Pair<Int, Int>, GreyImage>>) {
-        if (currentStreamChannel is StreamChannel.REGIONAL) {
+        if (streamStatus.streamChannel is StreamChannel.REGIONAL) {
             frameDestination(localImage[
                 (currentStreamChannel as? StreamChannel.REGIONAL)?.region ?: 0
             ].toRGBImage())

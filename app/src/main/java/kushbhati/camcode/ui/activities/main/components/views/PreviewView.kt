@@ -5,6 +5,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Matrix
+import android.util.Log
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import kushbhati.camcode.datamodels.RGBImage
@@ -13,11 +14,12 @@ import kushbhati.camcode.datamodels.RGBImage
 class PreviewView(context: Context) : SurfaceView(context), SurfaceHolder.Callback {
 
     private var surfaceAvailable: Boolean = false
-    private var sHeight: Int = 500
-    private var sWidth: Int = 500
+    private var sHeight: Int = 640
+    private var sWidth: Int = 480
 
     init {
         holder.addCallback(this)
+        holder.setFixedSize(sWidth, sHeight)
     }
 
     fun getAspectRatio(): Float {
@@ -46,6 +48,7 @@ class PreviewView(context: Context) : SurfaceView(context), SurfaceHolder.Callba
             sWidth = image.metadata.width
             sHeight = image.metadata.height
             holder.setFixedSize(sWidth, sHeight)
+            Log.d("xyz", "sfs")
         }
 
         if (surfaceAvailable) {

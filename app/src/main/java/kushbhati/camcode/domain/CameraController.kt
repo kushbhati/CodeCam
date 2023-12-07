@@ -1,5 +1,7 @@
 package kushbhati.camcode.domain
 
+import android.content.Context
+import androidx.annotation.RequiresPermission
 import kushbhati.camcode.datamodels.YUVImage
 
 interface CameraController {
