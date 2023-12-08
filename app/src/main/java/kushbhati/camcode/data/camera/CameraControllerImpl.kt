@@ -13,7 +13,7 @@ import android.hardware.camera2.params.OutputConfiguration
 import android.hardware.camera2.params.SessionConfiguration
 import android.media.ImageReader
 import android.os.Handler
-import android.os.Looper
+import android.os.HandlerThread
 import android.util.Log
 import android.util.Size
 import kushbhati.camcode.datamodels.Metadata
@@ -110,6 +110,7 @@ class CameraControllerImpl(
             16
         )
 
+
         imageReader.setOnImageAvailableListener(
             { reader ->
                 val image = reader?.acquireLatestImage() ?: return@setOnImageAvailableListener
@@ -136,7 +137,7 @@ class CameraControllerImpl(
                     frameReceiver?.onReceive(yuvImage)
                 }
             },
-            Handler(Looper.getMainLooper())
+            Handler(HandlerThread("new").apply { start() }.looper)
         )
 
         val sessionCallback = object: CameraCaptureSession.StateCallback() {
