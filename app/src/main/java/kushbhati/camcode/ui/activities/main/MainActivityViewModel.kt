@@ -1,12 +1,14 @@
 package kushbhati.camcode.ui.activities.main
 
-import android.content.Context
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import kushbhati.camcode.datamodels.RGBImage
+import kushbhati.camcode.domain.AnalysisPoint
 import kushbhati.camcode.domain.LogicHandler
+import kushbhati.camcode.domain.Signal
+import kushbhati.camcode.domain.SignalPoint
 import kushbhati.camcode.domain.StreamChannel
 import kushbhati.camcode.domain.StreamState
 import kushbhati.camcode.domain.StreamStatus
@@ -31,6 +33,10 @@ class MainActivityViewModel : ViewModel() {
         0.1f, 0.4f, 0.3f, 0.3f, 0.8f, 0.6f,
     )
 
+    val analysisPoints = listOf<AnalysisPoint>()
+    val signalPoints = listOf<SignalPoint>()
+    val signals = listOf<Signal>()
+
     init {
         logicHandler = LogicHandler(streamStatus) {
             if (it.metadata.timeStamp > timeStamp) {
@@ -39,5 +45,6 @@ class MainActivityViewModel : ViewModel() {
                 timeStamp = it.metadata.timeStamp
             }
         }
+
     }
 }
