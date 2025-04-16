@@ -1,7 +1,5 @@
 package kushbhati.camcode.data.camera
 
-import android.app.Application
-import android.content.Context
 import android.graphics.ImageFormat
 import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraCaptureSession
@@ -21,11 +19,9 @@ import kushbhati.camcode.datamodels.YUVImage
 import kushbhati.camcode.domain.CameraController
 import java.util.concurrent.Executors
 
-
 class CameraControllerImpl(
-    application: Application
+    private val cameraManager: CameraManager
 ) : CameraController {
-    private val cameraManager = application.getSystemService(Context.CAMERA_SERVICE) as CameraManager
     private lateinit var cameraList: Array<String>
 
     private lateinit var cameraDevice: CameraDevice
@@ -38,8 +34,6 @@ class CameraControllerImpl(
     private lateinit var imageReader: ImageReader
 
     private lateinit var sessionConfiguration: SessionConfiguration
-
-    private val executor = Executors.newFixedThreadPool(64)
 
     private val cameraHandler = object : CameraDevice.StateCallback() {
         override fun onOpened(device: CameraDevice) {
@@ -81,7 +75,7 @@ class CameraControllerImpl(
     private fun openCandidateCamera() {
         cameraManager.openCamera(
             cameraList.first(),
-            Executors.newSingleThreadExecutor(),
+            Executors.newSingleThreadExecutor().also {  },
             cameraHandler
         )
     }
@@ -126,18 +120,16 @@ class CameraControllerImpl(
                 image.planes[2].buffer.get(vChannel)
                 image.close()
 
-                executor.submit {
-                    val yuvImage = YUVImage(
-                        Metadata(width, height, timeStamp),
-                        yChannel,
-                        uChannel,
-                        vChannel
-                    )
-                    yuvImage.toNaturalRotation()
-                    frameReceiver?.onReceive(yuvImage)
-                }
+                val yuvImage = YUVImage(
+                    Metadata(width, height, timeStamp),
+                    yChannel,
+                    uChannel,
+                    vChannel
+                )
+                yuvImage.toNaturalRotation()
+                frameReceiver?.onReceive(yuvImage)
             },
-            Handler(HandlerThread("new").apply { start() }.looper)
+            Handler(HandlerThread("new").apply { start(); Log.d("thread", "new") }.looper)
         )
 
         val sessionCallback = object: CameraCaptureSession.StateCallback() {

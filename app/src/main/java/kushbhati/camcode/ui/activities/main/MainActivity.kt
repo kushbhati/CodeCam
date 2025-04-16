@@ -2,6 +2,7 @@ package kushbhati.camcode.ui.activities.main
 
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -20,6 +21,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.runtime.asIntState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -38,6 +40,7 @@ class MainActivity : ComponentActivity() {
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
+        Log.d("Tinfo MC", "${android.os.Process.myTid()}")
         super.onCreate(savedInstanceState)
 
         when (checkSelfPermission(cameraPermission)) {
@@ -77,7 +80,10 @@ class MainActivity : ComponentActivity() {
                             PreviewScreen(
                                 viewModel.previewFrame.value
                             ) {
-                                if (viewModel.streamStatus.streamState == StreamState.CAMERA_ACCESS_DENIED) {
+                                if (
+                                    //viewModel.streamStatus.streamState == StreamState.CAMERA_ACCESS_DENIED
+                                    false
+                                    ) {
                                     CamPermissionReq(
                                         modifier = Modifier.align(Alignment.Center),
                                         onclick = {
@@ -92,24 +98,30 @@ class MainActivity : ComponentActivity() {
                         }
                         item {
                             FreeGraph(
-                                viewModel.debugData,
+                                viewModel.viewableAPs.value,
                                 MaterialTheme.colorScheme.primary,
                                 MaterialTheme.colorScheme.primaryContainer,
                                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(80.dp)
                             )
-                            ThresholdGraph(
-                                viewModel.debugData,
-                                0.5f,
+                            FreeGraph(
+                                viewModel.viewableSPs.value,
                                 MaterialTheme.colorScheme.secondary,
                                 MaterialTheme.colorScheme.secondaryContainer,
                                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(80.dp)
                             )
-                            FreeGraph(
-                                viewModel.debugData,
-                                MaterialTheme.colorScheme.tertiary,
-                                MaterialTheme.colorScheme.tertiaryContainer,
-                                modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(80.dp)
-                            )
+//                            ThresholdGraph(
+//                                viewModel.debugData,
+//                                0.5f,
+//                                MaterialTheme.colorScheme.secondary,
+//                                MaterialTheme.colorScheme.secondaryContainer,
+//                                modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(80.dp)
+//                            )
+//                            FreeGraph(
+//                                viewModel.analysisPoints.map { it.value.toFloat() },
+//                                MaterialTheme.colorScheme.tertiary,
+//                                MaterialTheme.colorScheme.tertiaryContainer,
+//                                modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(80.dp)
+//                            )
                             Text(viewModel.frameRate.intValue.toString())
                         }
                     }

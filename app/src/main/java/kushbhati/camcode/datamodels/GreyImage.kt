@@ -4,7 +4,7 @@ class GreyImage (
     val metadata: Metadata,
     val pixelMatrix: ByteArray
 ) {
-    fun toRGBImage(): RGBImage {
+    fun asRGBImage(): RGBImage {
         return RGBImage(
             metadata = metadata,
             rChannel = pixelMatrix,
